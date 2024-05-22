@@ -1,0 +1,28 @@
+===========================================================
+OBJECTIONINSPECTION LEGAL DOCUMENT AI SUMMARY
+Source File   : sample_legal_document.txt
+Source Bucket : objection-inspection-input-117913377161-us-east-1
+AI Model Used : amazon.nova-micro-v1:0
+===========================================================
+
+### Executive Summary
+This Commercial Software as a Service (SaaS) and Data Processing Agreement ("Agreement") outlines the terms under which ObjectionInspection Inc. (Service Provider) provides its proprietary legal document review and analysis platform to LexGlobal Partners LLP (Customer). The Agreement includes service level commitments, payment terms, confidentiality and data security provisions, intellectual property rights, and dispute resolution mechanisms.
+
+### Key Parties and Effective Dates
+- **Service Provider:** ObjectionInspection Inc., a Delaware corporation.
+- **Customer:** LexGlobal Partners LLP, a limited liability partnership organized under the laws of New York.
+- **Effective Date:** October 1, 2026.
+
+### Core Obligations and Terms
+- **Service Scope:** Service Provider grants Customer a non-exclusive, non-transferable subscription to access the ObjectionInspection Platform.
+- **Service Level Agreement (SLA):** Service Provider guarantees 99.9% monthly uptime for document processing APIs and processes summarization requests within 30 seconds of document upload.
+- **Fees and Payment:** Customer pays an annual base fee of $48,000, payable in advance in twelve monthly installments of $4,000. Late payments incur interest at 1.5% per month.
+- **Confidentiality and Data Security:** Both parties must protect confidential information and ensure Customer Data stored in Amazon S3 is encrypted and secure.
+- **Intellectual Property:** Customer retains ownership of all uploaded documents and AI-generated summaries, while Service Provider retains ownership of the platform and its algorithms.
+
+### Termination, Penalties, and Liability Provisions
+- **Term:** The Agreement is initially for 24 months and renews annually unless either party provides 60 days written notice of non-renewal.
+- **Termination for Cause:** Either party can terminate the Agreement immediately if the other materially breaches the Agreement and fails to cure within 30 days.
+- **Post-Termination Data Retention:** Upon termination, Service Provider retains Customer Data for 30 days to allow for data retrieval, after which it must be securely purged.
+- **Indemnification and Liability:** Neither party is liable for indirect, incidental, or consequential damages. Each party’s aggregate liability under the Agreement is capped at the total fees paid by Customer in the preceding 12 months.
+- **Governing Law and Dispute Resolution:** The Agreement is governed by New York law, and any disputes are to be resolved through binding arbitration in New York City administered by JAMS.
