@@ -1,0 +1,295 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  ObjectionInspection AI-Powered Legal Document Summarization Architecture.
+  Deploys secure input/output S3 buckets (AES-256, Block Public Access),
+  a least-privilege IAM role, and an AWS Lambda function integrated with
+  Amazon Bedrock foundation models and automated S3 event notifications.
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: objection-inspection
+    Description: Prefix name for the project resources.
+
+Resources:
+  # =========================================================================
+  # 1. Output S3 Bucket (Stores Summarized Legal Documents)
+  # =========================================================================
+  OutputBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "${ProjectName}-output-${AWS::AccountId}-${AWS::Region}"
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+
+  # =========================================================================
+  # 2. IAM Role for Lambda Function (Principle of Least Privilege)
+  # =========================================================================
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${ProjectName}-lambda-execution-role-${AWS::Region}"
+      Description: Least-privilege IAM execution role for legal document summarization Lambda.
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: CloudWatchLogsPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/*"
+        - PolicyName: S3AccessPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              # Read legal documents from input bucket
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:GetObjectVersion
+                Resource: !Sub "arn:aws:s3:::${ProjectName}-input-${AWS::AccountId}-${AWS::Region}/*"
+              # Write generated summaries to output bucket
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:PutObjectAcl
+                Resource: !Sub "arn:aws:s3:::${ProjectName}-output-${AWS::AccountId}-${AWS::Region}/*"
+        - PolicyName: BedrockInvokePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              # Invoke foundational AI models on Amazon Bedrock
+              - Effect: Allow
+                Action:
+                  - bedrock:InvokeModel
+                Resource:
+                  - !Sub "arn:aws:bedrock:${AWS::Region}::foundation-model/*"
+                  - !Sub "arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/*"
+                  - "arn:aws:bedrock:*::foundation-model/*"
+
+  # =========================================================================
+  # 3. AWS Lambda Function (Orchestrator & Bedrock AI Summarizer)
+  # =========================================================================
+  SummarizationFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${ProjectName}-summarizer"
+      Description: Automated legal document summarizer triggered by S3 uploads and calling Amazon Bedrock.
+      Runtime: python3.11
+      Handler: index.lambda_handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Timeout: 180
+      MemorySize: 512
+      Environment:
+        Variables:
+          OUTPUT_BUCKET: !Ref OutputBucket
+          PRIMARY_MODEL_ID: "amazon.nova-micro-v1:0"
+          FALLBACK_MODEL_ID: "meta.llama3-8b-instruct-v1:0"
+      Code:
+        ZipFile: |
+          import json
+          import os
+          import urllib.parse
+          import boto3
+          import logging
+
+          logger = logging.getLogger()
+          logger.setLevel(logging.INFO)
+
+          s3_client = boto3.client('s3')
+          bedrock_runtime = boto3.client('bedrock-runtime')
+
+          OUTPUT_BUCKET = os.environ.get('OUTPUT_BUCKET')
+          PRIMARY_MODEL_ID = os.environ.get('PRIMARY_MODEL_ID', 'amazon.nova-micro-v1:0')
+          FALLBACK_MODEL_ID = os.environ.get('FALLBACK_MODEL_ID', 'meta.llama3-8b-instruct-v1:0')
+
+          def invoke_bedrock_summarization(text_content):
+              prompt = (
+                  "You are a professional legal AI assistant for ObjectionInspection. "
+                  "Analyze and summarize the following legal document clearly and concisely. "
+                  "Structure your summary with: "
+                  "1. Executive Summary\n"
+                  "2. Key Parties and Effective Dates\n"
+                  "3. Core Obligations and Terms\n"
+                  "4. Termination, Penalties, and Liability Provisions\n\n"
+                  f"--- LEGAL DOCUMENT TEXT ---\n{text_content}\n--- END DOCUMENT ---"
+              )
+
+              # Try Primary Model (Amazon Nova Micro)
+              try:
+                  logger.info(f"Invoking primary Bedrock model: {PRIMARY_MODEL_ID}")
+                  payload = {
+                      "messages": [
+                          {
+                              "role": "user",
+                              "content": [{"text": prompt}]
+                          }
+                      ],
+                      "inferenceConfig": {
+                          "max_new_tokens": 800,
+                          "temperature": 0.2
+                      }
+                  }
+                  response = bedrock_runtime.invoke_model(
+                      modelId=PRIMARY_MODEL_ID,
+                      contentType="application/json",
+                      accept="application/json",
+                      body=json.dumps(payload)
+                  )
+                  response_body = json.loads(response['body'].read().decode('utf-8'))
+                  summary_text = response_body['output']['message']['content'][0]['text']
+                  return summary_text, PRIMARY_MODEL_ID
+              except Exception as e:
+                  logger.warning(f"Primary model {PRIMARY_MODEL_ID} failed: {e}. Attempting fallback...")
+
+              # Try Fallback Model (Meta Llama 3)
+              try:
+                  logger.info(f"Invoking fallback Bedrock model: {FALLBACK_MODEL_ID}")
+                  payload = {
+                      "prompt": f"<|begin_of_text|><|start_header_id|>user<|end_header_id|>\n\n{prompt}<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n",
+                      "max_gen_len": 800,
+                      "temperature": 0.2
+                  }
+                  response = bedrock_runtime.invoke_model(
+                      modelId=FALLBACK_MODEL_ID,
+                      contentType="application/json",
+                      accept="application/json",
+                      body=json.dumps(payload)
+                  )
+                  response_body = json.loads(response['body'].read().decode('utf-8'))
+                  summary_text = response_body.get('generation', '')
+                  return summary_text, FALLBACK_MODEL_ID
+              except Exception as e2:
+                  logger.error(f"Fallback model {FALLBACK_MODEL_ID} also failed: {e2}")
+                  raise e2
+
+          def lambda_handler(event, context):
+              logger.info(f"Received S3 event: {json.dumps(event)}")
+              
+              results = []
+              for record in event.get('Records', []):
+                  input_bucket = record['s3']['bucket']['name']
+                  object_key = urllib.parse.unquote_plus(record['s3']['object']['key'])
+                  logger.info(f"Processing object: {object_key} from bucket: {input_bucket}")
+
+                  # 1. Fetch plaintext legal document from S3 Input Bucket
+                  s3_response = s3_client.get_object(Bucket=input_bucket, Key=object_key)
+                  document_text = s3_response['Body'].read().decode('utf-8')
+                  logger.info(f"Retrieved document. Length: {len(document_text)} characters.")
+
+                  # 2. Invoke Amazon Bedrock to generate AI summary
+                  summary_text, model_used = invoke_bedrock_summarization(document_text)
+                  logger.info(f"Successfully generated summary using model: {model_used}")
+
+                  # 3. Store summary in S3 Output Bucket
+                  base_name = os.path.splitext(os.path.basename(object_key))[0]
+                  output_key = f"summaries/{base_name}_summary.txt"
+                  
+                  metadata_header = (
+                      f"===========================================================\n"
+                      f"OBJECTIONINSPECTION LEGAL DOCUMENT AI SUMMARY\n"
+                      f"Source File   : {object_key}\n"
+                      f"Source Bucket : {input_bucket}\n"
+                      f"AI Model Used : {model_used}\n"
+                      f"===========================================================\n\n"
+                  )
+                  full_output_content = metadata_header + summary_text
+
+                  s3_client.put_object(
+                      Bucket=OUTPUT_BUCKET,
+                      Key=output_key,
+                      Body=full_output_content.encode('utf-8'),
+                      ContentType='text/plain',
+                      ServerSideEncryption='AES256'
+                  )
+                  logger.info(f"Saved summary to s3://{OUTPUT_BUCKET}/{output_key}")
+                  results.append({
+                      "source_file": object_key,
+                      "output_file": output_key,
+                      "model_used": model_used
+                  })
+
+              return {
+                  "statusCode": 200,
+                  "body": json.dumps({"status": "SUCCESS", "processed_records": results})
+              }
+
+  # =========================================================================
+  # 4. Lambda Permission (Allows Input S3 Bucket to Invoke Lambda)
+  # =========================================================================
+  LambdaInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !GetAtt SummarizationFunction.Arn
+      Action: lambda:InvokeFunction
+      Principal: s3.amazonaws.com
+      SourceArn: !Sub "arn:aws:s3:::${ProjectName}-input-${AWS::AccountId}-${AWS::Region}"
+      SourceAccount: !Ref AWS::AccountId
+
+  # =========================================================================
+  # 5. Input S3 Bucket with S3 Event Notification to Lambda
+  # =========================================================================
+  InputBucket:
+    Type: AWS::S3::Bucket
+    DependsOn: LambdaInvokePermission
+    Properties:
+      BucketName: !Sub "${ProjectName}-input-${AWS::AccountId}-${AWS::Region}"
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+      NotificationConfiguration:
+        LambdaConfigurations:
+          - Event: s3:ObjectCreated:*
+            Function: !GetAtt SummarizationFunction.Arn
+
+Outputs:
+  InputBucketName:
+    Description: Name of the Input S3 Bucket for legal documents
+    Value: !Ref InputBucket
+    Export:
+      Name: !Sub "${AWS::StackName}-InputBucket"
+
+  OutputBucketName:
+    Description: Name of the Output S3 Bucket for generated AI summaries
+    Value: !Ref OutputBucket
+    Export:
+      Name: !Sub "${AWS::StackName}-OutputBucket"
+
+  LambdaFunctionArn:
+    Description: ARN of the Document Summarization Lambda Function
+    Value: !GetAtt SummarizationFunction.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-LambdaFunctionArn"
+
+  LambdaRoleArn:
+    Description: ARN of the IAM Execution Role for Lambda
+    Value: !GetAtt LambdaExecutionRole.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-LambdaRoleArn"
