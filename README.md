@@ -1,11 +1,13 @@
 <div align="center">
   <img src="assets/hero-banner.svg" alt="AWS Serverless Bedrock Summarizer" width="100%" />
   <br/><br/>
-  ![AWS CloudFormation](https://img.shields.io/badge/IaC-AWS%20CloudFormation-FF9900?style=flat-square&logo=amazonaws&logoColor=white)
-  ![Amazon Bedrock](https://img.shields.io/badge/GenAI-Amazon%20Bedrock%20Nova%20%2B%20Llama%203-2563EB?style=flat-square)
-  ![AWS Lambda](https://img.shields.io/badge/Compute-AWS%20Lambda%20Python%203.11-0D9488?style=flat-square)
-  ![Latency](https://img.shields.io/badge/Inference%20Latency-2.13s-16A34A?style=flat-square)
-  ![License](https://img.shields.io/badge/License-MIT-slate?style=flat-square)
+  <p>
+    <img src="https://img.shields.io/badge/IaC-AWS%20CloudFormation-FF9900?style=flat-square&amp;logo=amazonaws&amp;logoColor=white" alt="AWS CloudFormation" />
+    <img src="https://img.shields.io/badge/GenAI-Amazon%20Bedrock%20Nova%20%2B%20Llama%203-2563EB?style=flat-square" alt="Amazon Bedrock" />
+    <img src="https://img.shields.io/badge/Compute-AWS%20Lambda%20Python%203.11-0D9488?style=flat-square" alt="AWS Lambda" />
+    <img src="https://img.shields.io/badge/Inference%20Latency-2.13s-16A34A?style=flat-square" alt="Latency" />
+    <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-475569?style=flat-square" alt="License" /></a>
+  </p>
 </div>
 
 ---
