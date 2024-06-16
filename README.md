@@ -1,10 +1,14 @@
-# Serverless Legal Document AI Summarization Pipeline on AWS
+<div align="center">
+  <img src="assets/hero-banner.svg" alt="AWS Serverless Bedrock Summarizer" width="100%" />
+  <br/><br/>
+  ![AWS CloudFormation](https://img.shields.io/badge/IaC-AWS%20CloudFormation-FF9900?style=flat-square&logo=amazonaws&logoColor=white)
+  ![Amazon Bedrock](https://img.shields.io/badge/GenAI-Amazon%20Bedrock%20Nova%20%2B%20Llama%203-2563EB?style=flat-square)
+  ![AWS Lambda](https://img.shields.io/badge/Compute-AWS%20Lambda%20Python%203.11-0D9488?style=flat-square)
+  ![Latency](https://img.shields.io/badge/Inference%20Latency-2.13s-16A34A?style=flat-square)
+  ![License](https://img.shields.io/badge/License-MIT-slate?style=flat-square)
+</div>
 
-![AWS CloudFormation](https://img.shields.io/badge/IaC-AWS%20CloudFormation-FF9900?style=flat-square&logo=amazonaws&logoColor=white)
-![Amazon Bedrock](https://img.shields.io/badge/GenAI-Amazon%20Bedrock%20Nova%20%2B%20Llama%203-2563EB?style=flat-square)
-![AWS Lambda](https://img.shields.io/badge/Compute-AWS%20Lambda%20Python%203.11-0D9488?style=flat-square)
-![Latency](https://img.shields.io/badge/Inference%20Latency-2.13s-16A34A?style=flat-square)
-![License](https://img.shields.io/badge/License-MIT-slate?style=flat-square)
+---
 
 Event-driven, zero-idle-cost legal contract summarization infrastructure provisioned via **AWS CloudFormation ([`template.yaml`](template.yaml))**—combining **SSE-S3 AES-256 encrypted Amazon S3** buckets, **AWS Lambda (Python 3.11)** event processing, dual-model **Amazon Bedrock** inference (`amazon.nova-micro-v1:0` primary with automatic `meta.llama3-8b-instruct-v1:0` failover), ARN-scoped least-privilege **AWS IAM**, and **FinOps** storage/inference cost optimization.
 
