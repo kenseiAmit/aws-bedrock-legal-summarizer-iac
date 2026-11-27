@@ -12,6 +12,8 @@
 
 ---
 
+![Serverless AWS Bedrock Legal Summarizer — CloudFormation Blueprint](docs/images/architecture_blueprint.png)
+
 Event-driven, zero-idle-cost legal contract summarization infrastructure provisioned via **AWS CloudFormation ([`template.yaml`](template.yaml))**—combining **SSE-S3 AES-256 encrypted Amazon S3** buckets, **AWS Lambda (Python 3.11)** event processing, dual-model **Amazon Bedrock** inference (`amazon.nova-micro-v1:0` primary with automatic `meta.llama3-8b-instruct-v1:0` failover), ARN-scoped least-privilege **AWS IAM**, and **FinOps** storage/inference cost optimization.
 
 ![System Architecture](architecture_diagram.png)
